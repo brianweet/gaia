@@ -134,9 +134,9 @@ TargetHandlersManager.prototype._createHandlerForTarget = function(target) {
       case KeyEvent.DOM_VK_BACK_SPACE:
         handler = new BackspaceTargetHandler(target, this.app);
         break;
-      case KeyEvent.DOM_VK_SPACE:
-        handler = new SpaceKeyTargetHandler(target, this.app);
-        break;
+      //case KeyEvent.DOM_VK_SPACE:
+      //  handler = new SpaceKeyTargetHandler(target, this.app);
+      //  break;
 
       case KeyEvent.DOM_VK_ALT:
         handler = new PageSwitchingTargetHandler(target, this.app);

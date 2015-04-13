@@ -210,9 +210,9 @@ LayoutManager.prototype._updateCurrentPage = function() {
     };
     if (this.currentPageIndex === this.PAGE_INDEX_DEFAULT) {
       Object.assign(pageSwitchingKeyObject, {
-        value: layout.alternateLayoutKey || '12&',
+        value: layout.alternateLayoutKey || '',
         ariaLabel: 'alternateLayoutKey2',
-        targetPage: 1
+        targetPage: 0
       });
     } else {
       Object.assign(pageSwitchingKeyObject, {
