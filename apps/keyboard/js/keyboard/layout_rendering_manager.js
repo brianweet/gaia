@@ -33,7 +33,7 @@ LayoutRenderingManager.prototype.start = function() {
     window.addEventListener('resize', this);
   }.bind(this), 2000);
 
-  this.domObjectMap = new WeakMap();
+  this.domObjectMap = new Map();
 };
 
 LayoutRenderingManager.prototype.stop = function() {

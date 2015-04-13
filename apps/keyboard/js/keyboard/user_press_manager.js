@@ -42,6 +42,9 @@ var UserPressManager = function(app) {
   // elements already GC'd.
   this.touchstartCounts = new WeakMap();
 
+  // TODO BWE
+  this.touchModel = null;
+
   this.app = app;
 };
 
@@ -85,7 +88,7 @@ UserPressManager.prototype.stop = function() {
 };
 
 UserPressManager.prototype.handleEvent = function(evt) {
-  var touch, touchId, el, i, touchstartCount;
+  var touch, touchId, el, i, touchstartCount, elementInfo;
   switch (evt.type) {
     case 'contextmenu':
       // Prevent all contextmenu event so no context menu on B2G/Desktop
@@ -96,6 +99,7 @@ UserPressManager.prototype.handleEvent = function(evt) {
       // Let the world know that we're using touch events and we should
       // not handle any presses from mouse events.
       this._ignoreMouseEvents = true;
+
 
       touchstartCount = this.touchstartCounts.get(evt.target) || 0;
       touchstartCount++;
@@ -113,9 +117,9 @@ UserPressManager.prototype.handleEvent = function(evt) {
       for (i = 0; i < evt.changedTouches.length; i++) {
         touch = evt.changedTouches[i];
         touchId = touch.identifier;
-        el = touch.target;
+        elementInfo = this.findFromPoint(touch.clientX, touch.clientY);
 
-        this._handleNewPress(el, touch, touchId);
+        this._handleNewPress(elementInfo.el, touch, touchId);
       }
       break;
 
@@ -128,9 +132,9 @@ UserPressManager.prototype.handleEvent = function(evt) {
           continue;
         }
 
-        el = document.elementFromPoint(touch.clientX, touch.clientY);
+        elementInfo = this.findFromPoint(touch.clientX, touch.clientY);
 
-        this._handleChangedPress(el, touch, touchId);
+        this._handleChangedPress(elementInfo.el, touch, touchId);
       }
       break;
 
@@ -158,8 +162,11 @@ UserPressManager.prototype.handleEvent = function(evt) {
         touch = evt.changedTouches[i];
         touchId = touch.identifier;
 
-        el = document.elementFromPoint(touch.clientX, touch.clientY);
-        this._handleFinishPress(el, touch, touchId);
+        elementInfo = this.findFromPoint(touch.clientX, touch.clientY);
+        if(elementInfo.moved)
+          touch = elementInfo.coords;
+
+        this._handleFinishPress(elementInfo.el, touch, touchId, elementInfo.moved);
       }
       break;
 
@@ -227,12 +234,12 @@ UserPressManager.prototype._handleChangedPress = function(el, coords, id) {
   }
 };
 
-UserPressManager.prototype._handleFinishPress = function(el, coords, id) {
+UserPressManager.prototype._handleFinishPress = function(el, coords, id, updateTarget) {
   this.app.console.info('UserPressManager._handleFinishPress()');
   var press = this.presses.get(id);
   press.target = this.app.layoutRenderingManager.getTargetObject(el);
   press.updateCoords(coords,
-    press.moved || this._distanceReachesLimit(id, coords));
+    press.moved || updateTarget || this._distanceReachesLimit(id, coords));
 
   if (typeof this.onpressend === 'function') {
     this.onpressend(press, id);
@@ -250,6 +257,47 @@ UserPressManager.prototype._distanceReachesLimit = function(id, newCoord) {
 
   return (dx >= limit || dx <= -limit || dy >= limit || dy <= -limit);
 };
+
+UserPressManager.prototype.findFromPoint = function(clientX, clientY){
+  var domElement = document.elementFromPoint(clientX, clientY);
+  if (!this.touchModel) {
+    return {
+      moved: false,
+      coords: { x: clientX, y: clientY },
+      el: domElement
+    };
+  }
+
+  var domElementCharCode = (!domElement) ? null : domElement.dataset.keycode,
+      bestDistance = 4.5,
+      newX = clientX,
+      newY = clientY;
+  for(var prop in this.touchModel){
+    var gauss = this.touchModel[prop];
+    var distance = gauss.mahalanobis(clientX, clientY);
+    if(distance < bestDistance){
+      bestDistance = distance;
+      newX = gauss.keyDistribution.meanX;
+      newY = gauss.keyDistribution.meanY;
+    }
+  }
+
+  //var modelResult = this.touchModel.getCoordinates(clientX, clientY);
+  //if (modelResult.confidence > 0.000003)
+    domElement = document.elementFromPoint(newX, newY);
+
+  if(domElementCharCode !== domElement.dataset.keycode)
+    console.log('BwE update target. Before:' + String.fromCharCode(domElementCharCode) + 
+      ' after:' + String.fromCharCode(domElement.dataset.keycode) + 
+      ' d: ' + bestDistance);
+
+  return {
+    moved: domElementCharCode !== domElement.dataset.keycode,
+    coords: {clientX: newX, clientY: newY},
+    el: domElement
+  };
+
+}
 
 exports.UserPress = UserPress;
 exports.UserPressManager = UserPressManager;
